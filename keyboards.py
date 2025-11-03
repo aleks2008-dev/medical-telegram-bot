@@ -48,11 +48,7 @@ class BotKeyboards:
             InlineKeyboardButton(text="🔬 Хирург", callback_data="spec_surgery")
         )
         
-        # Navigation
-        keyboard.row(
-            InlineKeyboardButton(text="📋 Все врачи", callback_data="all_doctors"),
-            InlineKeyboardButton(text="🔍 Поиск", callback_data="search_doctor")
-        )
+
         keyboard.row(
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
         )
@@ -65,16 +61,7 @@ class BotKeyboards:
         keyboard = InlineKeyboardBuilder()
         
         keyboard.row(
-            InlineKeyboardButton(text="📅 Активные записи", callback_data="active_appointments"),
-            InlineKeyboardButton(text="📋 Все записи", callback_data="all_appointments")
-        )
-        keyboard.row(
-            InlineKeyboardButton(text="📊 История посещений", callback_data="visit_history"),
-            InlineKeyboardButton(text="📈 Статистика", callback_data="appointment_stats")
-        )
-        keyboard.row(
-            InlineKeyboardButton(text="❌ Отменить запись", callback_data="cancel_appointment"),
-            InlineKeyboardButton(text="🔄 Перенести запись", callback_data="reschedule_appointment")
+            InlineKeyboardButton(text="📅 Посмотреть записи", callback_data="view_appointments")
         )
         keyboard.row(
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
@@ -143,6 +130,71 @@ class BotKeyboards:
         )
         keyboard.row(
             InlineKeyboardButton(text="📋 Все врачи", callback_data="search_all_doctors")
+        )
+        keyboard.row(
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
+        )
+        
+        return keyboard.as_markup()
+    @staticmethod
+    def doctors_for_booking(doctors_list) -> InlineKeyboardMarkup:
+        """Doctors selection for booking"""
+        keyboard = InlineKeyboardBuilder()
+        
+        for doctor in doctors_list[:8]:  # Show max 8 doctors
+            name = f"{doctor.get('name', 'Неизвестно')} {doctor.get('surname', '')}"
+            specialization = doctor.get('specialization', '')
+            button_text = f"👨⚕️ {name} - {specialization}"
+            
+            keyboard.row(
+                InlineKeyboardButton(
+                    text=button_text[:64],  # Telegram button text limit
+                    callback_data=f"select_doctor_{doctor['id']}"
+                )
+            )
+        
+        keyboard.row(
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
+        )
+        
+        return keyboard.as_markup()
+    
+    @staticmethod
+    def booking_time_slots() -> InlineKeyboardMarkup:
+        """Available time slots for booking"""
+        keyboard = InlineKeyboardBuilder()
+        
+        # Available times
+        times = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+        
+        # Create rows of 3 buttons
+        for i in range(0, len(times), 3):
+            row_times = times[i:i+3]
+            buttons = []
+            for time in row_times:
+                buttons.append(
+                    InlineKeyboardButton(
+                        text=f"⏰ {time}",
+                        callback_data=f"select_time_{time}"
+                    )
+                )
+            keyboard.row(*buttons)
+        
+        keyboard.row(
+            InlineKeyboardButton(text="🔙 Назад", callback_data="book_appointment"),
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
+        )
+        
+        return keyboard.as_markup()
+    
+    @staticmethod
+    def booking_confirmation(doctor_name, specialization, date, time) -> InlineKeyboardMarkup:
+        """Booking confirmation keyboard"""
+        keyboard = InlineKeyboardBuilder()
+        
+        keyboard.row(
+            InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_booking"),
+            InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_booking")
         )
         keyboard.row(
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")

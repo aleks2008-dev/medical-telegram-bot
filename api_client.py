@@ -121,3 +121,59 @@ class MedicalAPIClient:
         except Exception as e:
             print(f"Error getting doctors: {e}")
             return []
+    async def create_appointment(self, doctor_id: str, date: str, user_email: str, access_token: str) -> Optional[Dict]:
+        """Create new appointment"""
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        try:
+            # Get user info by email
+            async with self.session.get(
+                f"{self.base_url}/api/v1/users", 
+                headers=headers
+            ) as response:
+                if response.status != 200:
+                    return None
+                
+                users = await response.json()
+                user = next((u for u in users if u['email'] == user_email), None)
+                if not user:
+                    return None
+                
+                user_id = user['id']
+            
+            # Get available room (first room for simplicity)
+            async with self.session.get(
+                f"{self.base_url}/api/v1/rooms",
+                headers=headers
+            ) as response:
+                if response.status != 200:
+                    return None
+                
+                rooms = await response.json()
+                if not rooms:
+                    return None
+                
+                room_id = rooms[0]['id']
+            
+            # Create appointment with correct format
+            appointment_data = {
+                "user_id": user_id,
+                "doctor_id": doctor_id,
+                "room_id": room_id,
+                "date": date  # Just the date, no time
+            }
+            
+            async with self.session.post(
+                f"{self.base_url}/api/v1/appointments",
+                headers=headers,
+                json=appointment_data
+            ) as response:
+                if response.status in [200, 201]:
+                    return await response.json()
+                else:
+                    print(f"API Error: {response.status}, {await response.text()}")
+                    return None
+                
+        except Exception as e:
+            print(f"Error creating appointment: {e}")
+            return None
