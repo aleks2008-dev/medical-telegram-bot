@@ -1,6 +1,5 @@
 import os
 import asyncio
-import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F
@@ -14,9 +13,6 @@ from keyboards import BotKeyboards
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 bot = Bot(token=BOT_TOKEN)
@@ -24,27 +20,6 @@ dp = Dispatcher(storage=MemoryStorage())
 
 # Временное хранение токенов пользователей
 user_tokens = {}
-
-# Middleware для логирования всех обновлений
-@dp.update.middleware()
-async def logging_middleware(handler, event, data):
-    logger.info(f"🔍🔍🔍 MIDDLEWARE: Received update type: {type(event).__name__}")
-    
-    if hasattr(event, 'callback_query') and event.callback_query:
-        logger.info(f"🔍🔍🔍 CALLBACK DATA: '{event.callback_query.data}'")
-        logger.info(f"🔍🔍🔍 USER ID: {event.callback_query.from_user.id}")
-    
-    if hasattr(event, 'message') and event.message:
-        logger.info(f"🔍🔍🔍 MESSAGE TEXT: '{event.message.text}'")
-        logger.info(f"🔍🔍🔍 USER ID: {event.message.from_user.id}")
-    
-    try:
-        result = await handler(event, data)
-        logger.info(f"🔍🔍🔍 HANDLER RESULT: {result}")
-        return result
-    except Exception as e:
-        logger.error(f"🔍🔍🔍 HANDLER ERROR: {e}")
-        raise
 
 # FSM состояния для записи к врачу
 class BookingState(StatesGroup):
@@ -157,7 +132,7 @@ async def my_appointments_callback(callback: types.CallbackQuery):
 @dp.callback_query(F.data == "book_appointment")
 async def book_appointment_callback(callback: types.CallbackQuery, state: FSMContext):
     """Start appointment booking process"""
-    logger.info(f"📅 BOOKING START: User {callback.from_user.id}")
+
     user_id = callback.from_user.id
     
     if user_id not in user_tokens:
@@ -194,13 +169,12 @@ async def book_appointment_callback(callback: types.CallbackQuery, state: FSMCon
         )
         
         await state.set_state(BookingState.selecting_doctor)
-        logger.info(f"📋 STATE SET: BookingState.selecting_doctor")
         await callback.answer()
 
 @dp.callback_query(F.data == "login")
 async def login_callback(callback: types.CallbackQuery):
     """Handle login button"""
-    logger.info(f"🔐 LOGIN BUTTON: User {callback.from_user.id}")
+
     await callback.message.edit_text(
         "🔐 **Вход в систему**\n\n"
         "Отправьте ваши данные в формате:\n"
@@ -230,10 +204,7 @@ async def register_callback(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("select_doctor_"))
 async def select_doctor_callback(callback: types.CallbackQuery, state: FSMContext):
     """Handle doctor selection"""
-    logger.info(f"🎯🎯🎯 DOCTOR SELECTION HANDLER TRIGGERED!")
-    logger.info(f"🎯🎯🎯 CALLBACK DATA: {callback.data}")
     doctor_id = callback.data.replace("select_doctor_", "")
-    logger.info(f"Selected doctor ID: {doctor_id}")
     
     # Save doctor info to state
     await state.update_data(doctor_id=doctor_id)
@@ -245,7 +216,6 @@ async def select_doctor_callback(callback: types.CallbackQuery, state: FSMContex
     try:
         async with MedicalAPIClient() as api_client:
             doctor_info = await api_client.get_doctor_info(doctor_id, access_token)
-            logger.info(f"Doctor info received: {doctor_info}")
             
             if doctor_info:
                 doctor_name = f"{doctor_info['name']} {doctor_info['surname']}"
@@ -265,9 +235,7 @@ async def select_doctor_callback(callback: types.CallbackQuery, state: FSMContex
                 )
                 
                 await state.set_state(BookingState.selecting_time)
-                logger.info("State set to selecting_time")
             else:
-                logger.error("No doctor info received")
                 await callback.message.edit_text(
                     "❌ **Ошибка получения данных врача**\n\n"
                     "Попробуйте выбрать другого врача.",
@@ -275,7 +243,6 @@ async def select_doctor_callback(callback: types.CallbackQuery, state: FSMContex
                     parse_mode="Markdown"
                 )
     except Exception as e:
-        logger.error(f"Error in select_doctor_callback: {e}")
         await callback.message.edit_text(
             "❌ **Ошибка системы**\n\n"
             f"Ошибка: {str(e)}",
@@ -289,7 +256,6 @@ async def select_doctor_callback(callback: types.CallbackQuery, state: FSMContex
 async def select_time_callback(callback: types.CallbackQuery, state: FSMContext):
     """Handle time selection"""
     selected_time = callback.data.replace("select_time_", "")
-    logger.info(f"Selected time: {selected_time}")
     
     # Get tomorrow's date as default
     tomorrow = datetime.now() + timedelta(days=1)
@@ -303,7 +269,6 @@ async def select_time_callback(callback: types.CallbackQuery, state: FSMContext)
     
     # Get saved data for confirmation
     data = await state.get_data()
-    logger.info(f"Current state data: {data}")
     
     doctor_name = data.get('doctor_name', 'Неизвестный врач')
     specialization = data.get('specialization', 'Не указано')
@@ -322,7 +287,6 @@ async def select_time_callback(callback: types.CallbackQuery, state: FSMContext)
     )
     
     await state.set_state(BookingState.confirming_appointment)
-    logger.info("State set to confirming_appointment")
     await callback.answer()
 
 @dp.callback_query(F.data == "confirm_booking")
@@ -357,10 +321,10 @@ async def confirm_booking_callback(callback: types.CallbackQuery, state: FSMCont
             )
         else:
             await callback.message.edit_text(
-                f"❌ **Ошибка создания записи**\n\n"
-                f"Проверьте:\n"
-                f"• Есть ли доступные кабинеты\n"
-                f"• Работает ли FastAPI сервер",
+                "❌ **Ошибка создания записи**\n\n"
+                "Проверьте:\n"
+                "• Есть ли доступные кабинеты\n"
+                "• Работает ли FastAPI сервер",
                 reply_markup=BotKeyboards.back_to_main(),
                 parse_mode="Markdown"
             )
@@ -436,7 +400,7 @@ async def search_specialization_callback(callback: types.CallbackQuery):
             return
         
         # Format doctors list
-        doctors_text = f"👨⚕️ **Врачи"
+        doctors_text = "👨⚕️ **Врачи"
         if specialization != "all":
             doctors_text += f" - {specialization}"
         doctors_text += ":**\n\n"
@@ -515,7 +479,7 @@ async def view_appointments_callback(callback: types.CallbackQuery):
 @dp.message(F.text.contains(":"))
 async def handle_login_credentials(message: types.Message):
     """Handle login credentials in format email:password"""
-    logger.info(f"🔑 LOGIN ATTEMPT: User {message.from_user.id}")
+
     try:
         email, password = message.text.split(":", 1)
         
@@ -557,20 +521,11 @@ async def handle_login_credentials(message: types.Message):
 @dp.callback_query()
 async def unknown_callback_handler(callback: types.CallbackQuery):
     """Handle unknown callback queries"""
-    logger.error(f"❌❌❌ UNHANDLED CALLBACK DATA: '{callback.data}'")
-    logger.error(f"❌❌❌ USER: {callback.from_user.id}")
-    logger.error(f"❌❌❌ CALLBACK ID: {callback.id}")
-    
-    # Check if it should be handled by select_doctor handler
-    if callback.data and callback.data.startswith("select_doctor_"):
-        logger.error(f"❌❌❌ THIS SHOULD BE HANDLED BY select_doctor_ handler!")
-    
     await callback.answer("❓ Неизвестная команда")
 
 @dp.message()
 async def unknown_message_handler(message: types.Message):
     """Handle unknown messages"""
-    logger.warning(f"❌ UNHANDLED MESSAGE: {message.text}")
     await message.answer(
         "🤔 **Не понял ваше сообщение**\n\n"
         "Используйте кнопки меню для навигации.",
@@ -586,30 +541,21 @@ async def set_bot_commands():
     ]
     
     await bot.set_my_commands(commands)
-    logger.info("Bot commands set successfully")
 
 async def main():
     if not BOT_TOKEN:
-        logger.error("BOT_TOKEN не найден в .env файле")
+        print("BOT_TOKEN не найден в .env файле")
         return
     
     try:
         # Устанавливаем команды бота
         await set_bot_commands()
         
-        logger.info("🤖 Medical Bot started with navigation system!")
-        logger.info("Available features:")
-        logger.info("  📋 Inline keyboard navigation")
-        logger.info("  🔐 User authentication")
-        logger.info("  👨⚕️ Doctors management")
-        logger.info("  📅 Appointments booking")
-        logger.info("  🔍 Doctor search by specialization")
-        
         # Запускаем polling
         await dp.start_polling(bot)
         
     except Exception as e:
-        logger.error(f"Error starting bot: {e}")
+        print(f"Error starting bot: {e}")
     finally:
         await bot.session.close()
 

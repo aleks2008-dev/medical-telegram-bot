@@ -1,7 +1,5 @@
 import aiohttp
-import asyncio
 from typing import List, Dict, Optional
-from datetime import datetime
 
 class MedicalAPIClient:
     def __init__(self, base_url: str = "http://localhost:8000"):
@@ -32,8 +30,7 @@ class MedicalAPIClient:
                     result = await response.json()
                     return result.get("access_token")
                 return None
-        except Exception as e:
-            print(f"Error authenticating user: {e}")
+        except Exception:
             return None
     
     async def get_user_appointments(self, user_email: str, access_token: str) -> List[Dict]:
@@ -73,8 +70,7 @@ class MedicalAPIClient:
                 
                 return user_appointments
                 
-        except Exception as e:
-            print(f"Error getting appointments: {e}")
+        except Exception:
             return []
     
     async def get_doctor_info(self, doctor_id: str, access_token: str) -> Optional[Dict]:
@@ -89,8 +85,7 @@ class MedicalAPIClient:
                 if response.status == 200:
                     return await response.json()
                 return None
-        except Exception as e:
-            print(f"Error getting doctor info: {e}")
+        except Exception:
             return None
     async def get_doctors_by_specialization(self, specialization: str, access_token: str = None) -> List[Dict]:
         """Get doctors by specialization"""
@@ -118,6 +113,5 @@ class MedicalAPIClient:
                 
                 return doctors
                 
-        except Exception as e:
-            print(f"Error getting doctors: {e}")
+        except Exception:
             return []

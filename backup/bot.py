@@ -1,21 +1,17 @@
 import os
 import asyncio
-import logging
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
-from aiogram.fsm.context import FSMContext
+from aiogram.types import BotCommand
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from api_client import MedicalAPIClient
 from keyboards import BotKeyboards
-from datetime import datetime
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 API_BASE_URL = os.getenv('API_BASE_URL')
@@ -256,32 +252,21 @@ async def set_bot_commands():
     ]
     
     await bot.set_my_commands(commands)
-    logger.info("Bot commands set successfully")
 
 async def main():
     if not BOT_TOKEN:
-        logger.error("BOT_TOKEN не найден в .env файле")
+        print("BOT_TOKEN не найден в .env файле")
         return
     
     try:
         # Устанавливаем команды бота
         await set_bot_commands()
         
-        logger.info("🤖 Medical Bot started with navigation system!")
-        logger.info("Available features:")
-        logger.info("  📋 Inline keyboard navigation")
-        logger.info("  🔐 User authentication")
-        logger.info("  👨⚕️ Doctors management")
-        logger.info("  📅 Appointments booking")
-        logger.info("  📊 Visit history")
-        logger.info("  👤 Profile management")
-        logger.info("  ❓ Help and support")
-        
         # Запускаем polling
         await dp.start_polling(bot)
         
     except Exception as e:
-        logger.error(f"Error starting bot: {e}")
+        print(f"Error starting bot: {e}")
     finally:
         await bot.session.close()
 
@@ -340,7 +325,7 @@ async def search_specialization_callback(callback: types.CallbackQuery):
             return
         
         # Format doctors list
-        doctors_text = f"👨‍⚕️ **Врачи"
+        doctors_text = "👨‍⚕️ **Врачи"
         if specialization != "all":
             doctors_text += f" - {specialization}"
         doctors_text += ":**\n\n"
