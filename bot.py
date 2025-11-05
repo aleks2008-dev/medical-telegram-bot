@@ -305,7 +305,7 @@ async def confirm_booking_callback(callback: types.CallbackQuery, state: FSMCont
     
     async with MedicalAPIClient() as api_client:
         appointment = await api_client.create_appointment(
-            doctor_id, date, user_email, access_token
+            doctor_id, date, time, user_email, access_token
         )
         
         if appointment:

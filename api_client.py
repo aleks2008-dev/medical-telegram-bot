@@ -115,7 +115,7 @@ class MedicalAPIClient:
                 
         except Exception:
             return []
-    async def create_appointment(self, doctor_id: str, date: str, user_email: str, access_token: str) -> Optional[Dict]:
+    async def create_appointment(self, doctor_id: str, date: str, time: str, user_email: str, access_token: str) -> Optional[Dict]:
         """Create new appointment"""
         headers = {"Authorization": f"Bearer {access_token}"}
         
@@ -154,7 +154,7 @@ class MedicalAPIClient:
                 "user_id": user_id,
                 "doctor_id": doctor_id,
                 "room_id": room_id,
-                "date": date  # Just the date, no time
+                "datetime": f"{date}T{time}:00"  # Combine date and time
             }
             
             async with self.session.post(
