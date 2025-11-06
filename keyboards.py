@@ -47,8 +47,9 @@ class BotKeyboards:
             InlineKeyboardButton(text="🩺 Терапевт", callback_data="spec_therapy"),
             InlineKeyboardButton(text="🔬 Хирург", callback_data="spec_surgery")
         )
-        
-
+        keyboard.row(
+            InlineKeyboardButton(text="📋 Все врачи", callback_data="view_all_doctors")
+        )
         keyboard.row(
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
         )

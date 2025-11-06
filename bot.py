@@ -199,6 +199,54 @@ async def register_callback(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+@dp.callback_query(F.data == "view_all_doctors")
+async def view_all_doctors_callback(callback: types.CallbackQuery):
+    """Show all doctors regardless of specialization"""
+    user_id = callback.from_user.id
+    
+    # Get access token if user is logged in
+    access_token = None
+    if user_id in user_tokens:
+        access_token = user_tokens[user_id]["token"]
+    
+    async with MedicalAPIClient() as api_client:
+        doctors = await api_client.get_doctors_by_specialization(None, access_token)
+        
+        if not doctors:
+            await callback.message.edit_text(
+                "❌ **Врачи не найдены**\n\n"
+                "В данный момент нет доступных врачей.",
+                reply_markup=BotKeyboards.doctors_menu(),
+                parse_mode="Markdown"
+            )
+            await callback.answer()
+            return
+        
+        # Format doctors list
+        doctors_text = "👨⚕️ **Все врачи:**\n\n"
+        
+        for i, doctor in enumerate(doctors[:10], 1):  # Show max 10 doctors
+            name = f"{doctor.get('name', 'Неизвестно')} {doctor.get('surname', '')}"
+            spec = doctor.get('specialization', 'Не указано')
+            
+            doctors_text += (
+                f"**{i}. {name}**\n"
+                f"🏥 Специализация: {spec}\n\n"
+            )
+        
+        if len(doctors) > 10:
+            doctors_text += f"... и еще {len(doctors) - 10} врачей\n\n"
+        
+        doctors_text += "Для записи к врачу используйте главное меню."
+        
+        await callback.message.edit_text(
+            doctors_text,
+            reply_markup=BotKeyboards.doctors_menu(),
+            parse_mode="Markdown"
+        )
+    
+    await callback.answer()
+
 # ==================== BOOKING PROCESS HANDLERS ====================
 
 @dp.callback_query(F.data.startswith("select_doctor_"))
