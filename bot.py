@@ -512,13 +512,90 @@ async def view_appointments_callback(callback: types.CallbackQuery):
         
         for i, appointment in enumerate(appointments[:5], 1):
             appointments_text += f"**{i}.** Запись #{appointment.get('id', 'N/A')}\n"
-            appointments_text += f"📅 Дата: {appointment.get('date', 'Не указана')}\n\n"
+            appointments_text += f"📅 Дата: {appointment.get('datetime', 'Не указана')}\n\n"
         
         await callback.message.edit_text(
             appointments_text,
+            reply_markup=BotKeyboards.appointments_menu(),
+            parse_mode="Markdown"
+        )
+    
+    await callback.answer()
+
+@dp.callback_query(F.data == "cancel_appointments")
+async def cancel_appointments_callback(callback: types.CallbackQuery):
+    """Show appointments for cancellation"""
+    user_id = callback.from_user.id
+    
+    if user_id not in user_tokens:
+        await callback.message.edit_text(
+            "❌ **Требуется авторизация**\n\n"
+            "Для отмены записей необходимо войти в систему.",
             reply_markup=BotKeyboards.back_to_main(),
             parse_mode="Markdown"
         )
+        await callback.answer()
+        return
+    
+    access_token = user_tokens[user_id]["token"]
+    user_email = user_tokens[user_id]["email"]
+    
+    async with MedicalAPIClient() as api_client:
+        appointments = await api_client.get_user_appointments(user_email, access_token)
+        
+        if not appointments:
+            await callback.message.edit_text(
+                "📋 **Отмена записей**\n\n"
+                "У вас нет записей для отмены.",
+                reply_markup=BotKeyboards.appointments_menu(),
+                parse_mode="Markdown"
+            )
+            await callback.answer()
+            return
+        
+        await callback.message.edit_text(
+            "❌ **Выберите запись для отмены:**\n\n"
+            "Нажмите на запись, которую хотите отменить:",
+            reply_markup=BotKeyboards.appointments_for_cancellation(appointments),
+            parse_mode="Markdown"
+        )
+    
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("cancel_appointment_"))
+async def cancel_appointment_callback(callback: types.CallbackQuery):
+    """Cancel specific appointment"""
+    appointment_id = callback.data.replace("cancel_appointment_", "")
+    user_id = callback.from_user.id
+    
+    if user_id not in user_tokens:
+        await callback.message.edit_text(
+            "❌ **Требуется авторизация**",
+            reply_markup=BotKeyboards.back_to_main(),
+            parse_mode="Markdown"
+        )
+        await callback.answer()
+        return
+    
+    access_token = user_tokens[user_id]["token"]
+    
+    async with MedicalAPIClient() as api_client:
+        success = await api_client.cancel_appointment(appointment_id, access_token)
+        
+        if success:
+            await callback.message.edit_text(
+                "✅ **Запись успешно отменена!**\n\n"
+                f"Запись #{appointment_id[:8]} была удалена из системы.",
+                reply_markup=BotKeyboards.appointments_menu(),
+                parse_mode="Markdown"
+            )
+        else:
+            await callback.message.edit_text(
+                "❌ **Ошибка отмены записи**\n\n"
+                "Не удалось отменить запись. Возможно, она уже была отменена.",
+                reply_markup=BotKeyboards.appointments_menu(),
+                parse_mode="Markdown"
+            )
     
     await callback.answer()
 

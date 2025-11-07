@@ -169,3 +169,16 @@ class MedicalAPIClient:
                 
         except Exception:
             return None
+    
+    async def cancel_appointment(self, appointment_id: str, access_token: str) -> bool:
+        """Cancel appointment by ID"""
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        try:
+            async with self.session.delete(
+                f"{self.base_url}/api/v1/appointments/{appointment_id}",
+                headers=headers
+            ) as response:
+                return response.status in [200, 204]
+        except Exception:
+            return False

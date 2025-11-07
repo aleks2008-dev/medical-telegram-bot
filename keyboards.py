@@ -62,7 +62,8 @@ class BotKeyboards:
         keyboard = InlineKeyboardBuilder()
         
         keyboard.row(
-            InlineKeyboardButton(text="📅 Посмотреть записи", callback_data="view_appointments")
+            InlineKeyboardButton(text="📅 Посмотреть записи", callback_data="view_appointments"),
+            InlineKeyboardButton(text="❌ Отменить запись", callback_data="cancel_appointments")
         )
         keyboard.row(
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
@@ -111,6 +112,7 @@ class BotKeyboards:
         )
         
         return keyboard.as_markup()
+    
     @staticmethod
     def search_specializations() -> InlineKeyboardMarkup:
         """Search by specialization keyboard"""
@@ -137,6 +139,7 @@ class BotKeyboards:
         )
         
         return keyboard.as_markup()
+    
     @staticmethod
     def doctors_for_booking(doctors_list) -> InlineKeyboardMarkup:
         """Doctors selection for booking"""
@@ -198,6 +201,32 @@ class BotKeyboards:
             InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_booking")
         )
         keyboard.row(
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
+        )
+        
+        return keyboard.as_markup()
+    
+    @staticmethod
+    def appointments_for_cancellation(appointments_list) -> InlineKeyboardMarkup:
+        """Appointments list for cancellation"""
+        keyboard = InlineKeyboardBuilder()
+        
+        for i, appointment in enumerate(appointments_list[:5], 1):  # Show max 5 appointments
+            appointment_id = appointment.get('id', 'N/A')
+            date = appointment.get('datetime', 'Не указана')[:10]  # Get date part
+            time = appointment.get('datetime', 'Не указано')[11:16]  # Get time part
+            
+            button_text = f"❌ {i}. {date} в {time}"
+            
+            keyboard.row(
+                InlineKeyboardButton(
+                    text=button_text,
+                    callback_data=f"cancel_appointment_{appointment_id}"
+                )
+            )
+        
+        keyboard.row(
+            InlineKeyboardButton(text="🔙 Назад", callback_data="my_appointments"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
         )
         
