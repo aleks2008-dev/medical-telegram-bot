@@ -185,7 +185,7 @@ class BotKeyboards:
             keyboard.row(*buttons)
         
         keyboard.row(
-            InlineKeyboardButton(text="🔙 Назад", callback_data="book_appointment"),
+            InlineKeyboardButton(text="🔙 Назад", callback_data="select_date"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
         )
         
@@ -227,6 +227,84 @@ class BotKeyboards:
         
         keyboard.row(
             InlineKeyboardButton(text="🔙 Назад", callback_data="my_appointments"),
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
+        )
+        
+        return keyboard.as_markup()
+    
+    @staticmethod
+    def calendar(year: int, month: int) -> InlineKeyboardMarkup:
+        """Generate calendar for date selection"""
+        import calendar
+        from datetime import datetime, date
+        
+        keyboard = InlineKeyboardBuilder()
+        
+        # Month and year header
+        month_names = [
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        ]
+        
+        keyboard.row(
+            InlineKeyboardButton(
+                text=f"📅 {month_names[month-1]} {year}",
+                callback_data="ignore"
+            )
+        )
+        
+        # Days of week header
+        keyboard.row(
+            InlineKeyboardButton(text="Пн", callback_data="ignore"),
+            InlineKeyboardButton(text="Вт", callback_data="ignore"),
+            InlineKeyboardButton(text="Ср", callback_data="ignore"),
+            InlineKeyboardButton(text="Чт", callback_data="ignore"),
+            InlineKeyboardButton(text="Пт", callback_data="ignore"),
+            InlineKeyboardButton(text="Сб", callback_data="ignore"),
+            InlineKeyboardButton(text="Вс", callback_data="ignore")
+        )
+        
+        # Calendar days
+        cal = calendar.monthcalendar(year, month)
+        today = date.today()
+        
+        for week in cal:
+            week_buttons = []
+            for day in week:
+                if day == 0:
+                    week_buttons.append(
+                        InlineKeyboardButton(text=" ", callback_data="ignore")
+                    )
+                else:
+                    current_date = date(year, month, day)
+                    if current_date < today:
+                        # Past dates - disabled
+                        week_buttons.append(
+                            InlineKeyboardButton(text="❌", callback_data="ignore")
+                        )
+                    elif current_date.weekday() >= 5:  # Weekend
+                        # Weekend - disabled
+                        week_buttons.append(
+                            InlineKeyboardButton(text="🔴", callback_data="ignore")
+                        )
+                    else:
+                        # Available date
+                        week_buttons.append(
+                            InlineKeyboardButton(
+                                text=str(day),
+                                callback_data=f"date_{year}-{month:02d}-{day:02d}"
+                            )
+                        )
+            keyboard.row(*week_buttons)
+        
+        # Navigation buttons
+        keyboard.row(
+            InlineKeyboardButton(text="◀️ Пред", callback_data=f"cal_prev_{year}_{month}"),
+            InlineKeyboardButton(text="След ▶️", callback_data=f"cal_next_{year}_{month}")
+        )
+        
+        keyboard.row(
+            InlineKeyboardButton(text="🔙 Назад", callback_data="book_appointment"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
         )
         

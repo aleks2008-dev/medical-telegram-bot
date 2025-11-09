@@ -277,8 +277,8 @@ async def select_doctor_callback(callback: types.CallbackQuery, state: FSMContex
                 await callback.message.edit_text(
                     f"👨⚕️ **Выбран врач: {doctor_name}**\n\n"
                     f"🏥 Специализация: {specialization}\n\n"
-                    f"⏰ **Выберите удобное время:**",
-                    reply_markup=BotKeyboards.booking_time_slots(),
+                    f"📅 **Выберите дату для записи:**",
+                    reply_markup=BotKeyboards.calendar(datetime.now().year, datetime.now().month),
                     parse_mode="Markdown"
                 )
                 
@@ -305,27 +305,28 @@ async def select_time_callback(callback: types.CallbackQuery, state: FSMContext)
     """Handle time selection"""
     selected_time = callback.data.replace("select_time_", "")
     
-    # Get tomorrow's date as default
-    tomorrow = datetime.now() + timedelta(days=1)
-    appointment_date = tomorrow.strftime("%Y-%m-%d")
-    
-    # Save time and date to state
-    await state.update_data(
-        time=selected_time,
-        date=appointment_date
-    )
+    # Save time to state
+    await state.update_data(time=selected_time)
     
     # Get saved data for confirmation
     data = await state.get_data()
     
     doctor_name = data.get('doctor_name', 'Неизвестный врач')
     specialization = data.get('specialization', 'Не указано')
+    appointment_date = data.get('date', '')
+    
+    # Format date for display
+    if appointment_date:
+        date_obj = datetime.strptime(appointment_date, "%Y-%m-%d")
+        formatted_date = date_obj.strftime("%d.%m.%Y")
+    else:
+        formatted_date = 'Не выбрана'
     
     await callback.message.edit_text(
         f"✅ **Подтвердите запись:**\n\n"
         f"👨⚕️ Врач: {doctor_name}\n"
         f"🏥 Специализация: {specialization}\n"
-        f"📅 Дата: {tomorrow.strftime('%d.%m.%Y')}\n"
+        f"📅 Дата: {formatted_date}\n"
         f"⏰ Время: {selected_time}\n\n"
         f"Подтвердить запись?",
         reply_markup=BotKeyboards.booking_confirmation(
@@ -356,14 +357,24 @@ async def confirm_booking_callback(callback: types.CallbackQuery, state: FSMCont
             doctor_id, date, time, user_email, access_token
         )
         
-        if appointment:
+        if appointment and not appointment.get('error'):
+            room_number = appointment.get('room_number', 'Неизвестно')
             await callback.message.edit_text(
                 f"🎉 **Запись успешно создана!**\n\n"
                 f"📋 Номер записи: #{str(appointment.get('id', 'N/A'))[:8]}\n"
                 f"👨⚕️ Врач: {doctor_name}\n"
                 f"📅 Дата: {date}\n"
-                f"⏰ Время: {time}\n\n"
+                f"⏰ Время: {time}\n"
+                f"🏠 Комната: {room_number}\n\n"
                 f"✅ Запись сохранена в системе!",
+                reply_markup=BotKeyboards.back_to_main(),
+                parse_mode="Markdown"
+            )
+        elif appointment and appointment.get('error') == 'no_rooms':
+            await callback.message.edit_text(
+                "❌ **Ошибка создания записи**\n\n"
+                f"🏠 {appointment.get('message')}\n\n"
+                "Обратитесь к администратору для создания комнат.",
                 reply_markup=BotKeyboards.back_to_main(),
                 parse_mode="Markdown"
             )
@@ -371,8 +382,8 @@ async def confirm_booking_callback(callback: types.CallbackQuery, state: FSMCont
             await callback.message.edit_text(
                 "❌ **Ошибка создания записи**\n\n"
                 "Проверьте:\n"
-                "• Есть ли доступные кабинеты\n"
-                "• Работает ли FastAPI сервер",
+                "• Работает ли FastAPI сервер\n"
+                "• Правильность данных",
                 reply_markup=BotKeyboards.back_to_main(),
                 parse_mode="Markdown"
             )
@@ -597,6 +608,94 @@ async def cancel_appointment_callback(callback: types.CallbackQuery):
                 parse_mode="Markdown"
             )
     
+    await callback.answer()
+
+# ==================== CALENDAR HANDLERS ====================
+
+@dp.callback_query(F.data.startswith("date_"))
+async def date_selected_callback(callback: types.CallbackQuery, state: FSMContext):
+    """Handle date selection from calendar"""
+    selected_date = callback.data.replace("date_", "")
+    
+    # Save selected date to state
+    await state.update_data(date=selected_date)
+    
+    # Get saved data
+    data = await state.get_data()
+    doctor_name = data.get('doctor_name', 'Неизвестный врач')
+    specialization = data.get('specialization', 'Не указано')
+    
+    # Format date for display
+    from datetime import datetime
+    date_obj = datetime.strptime(selected_date, "%Y-%m-%d")
+    formatted_date = date_obj.strftime("%d.%m.%Y")
+    
+    await callback.message.edit_text(
+        f"👨⚕️ **Врач: {doctor_name}**\n"
+        f"🏥 Специализация: {specialization}\n"
+        f"📅 Дата: {formatted_date}\n\n"
+        f"⏰ **Выберите время:**",
+        reply_markup=BotKeyboards.booking_time_slots(),
+        parse_mode="Markdown"
+    )
+    
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("cal_prev_"))
+async def calendar_prev_callback(callback: types.CallbackQuery):
+    """Handle previous month navigation"""
+    _, _, year, month = callback.data.split("_")
+    year, month = int(year), int(month)
+    
+    # Calculate previous month
+    if month == 1:
+        month = 12
+        year -= 1
+    else:
+        month -= 1
+    
+    await callback.message.edit_reply_markup(
+        reply_markup=BotKeyboards.calendar(year, month)
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("cal_next_"))
+async def calendar_next_callback(callback: types.CallbackQuery):
+    """Handle next month navigation"""
+    _, _, year, month = callback.data.split("_")
+    year, month = int(year), int(month)
+    
+    # Calculate next month
+    if month == 12:
+        month = 1
+        year += 1
+    else:
+        month += 1
+    
+    await callback.message.edit_reply_markup(
+        reply_markup=BotKeyboards.calendar(year, month)
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "select_date")
+async def select_date_callback(callback: types.CallbackQuery, state: FSMContext):
+    """Show calendar for date selection"""
+    data = await state.get_data()
+    doctor_name = data.get('doctor_name', 'Неизвестный врач')
+    specialization = data.get('specialization', 'Не указано')
+    
+    await callback.message.edit_text(
+        f"👨⚕️ **Врач: {doctor_name}**\n"
+        f"🏥 Специализация: {specialization}\n\n"
+        f"📅 **Выберите дату:**",
+        reply_markup=BotKeyboards.calendar(datetime.now().year, datetime.now().month),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "ignore")
+async def ignore_callback(callback: types.CallbackQuery):
+    """Ignore callback for non-interactive buttons"""
     await callback.answer()
 
 # ==================== LOGIN HANDLER ====================

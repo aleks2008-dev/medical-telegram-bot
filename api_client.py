@@ -145,7 +145,7 @@ class MedicalAPIClient:
                 
                 rooms = await response.json()
                 if not rooms:
-                    return None
+                    return {"error": "no_rooms", "message": "Нет доступных комнат для записи"}
                 
                 room_id = rooms[0]['id']
             
@@ -163,7 +163,11 @@ class MedicalAPIClient:
                 json=appointment_data
             ) as response:
                 if response.status in [200, 201]:
-                    return await response.json()
+                    appointment_result = await response.json()
+                    # Add room number to result
+                    room_number = next((r['number'] for r in rooms if r['id'] == room_id), 'Неизвестно')
+                    appointment_result['room_number'] = room_number
+                    return appointment_result
                 else:
                     return None
                 
