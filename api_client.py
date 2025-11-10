@@ -186,3 +186,64 @@ class MedicalAPIClient:
                 return response.status in [200, 204]
         except Exception:
             return False
+    
+    async def get_user_statistics(self, user_email: str, access_token: str) -> Optional[Dict]:
+        """Get user statistics"""
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        try:
+            # Get user appointments
+            appointments = await self.get_user_appointments(user_email, access_token)
+            
+            if not appointments:
+                return {
+                    "total_appointments": 0,
+                    "favorite_doctors": [],
+                    "specializations": {},
+                    "monthly_visits": {}
+                }
+            
+            # Calculate statistics
+            from collections import Counter
+            from datetime import datetime
+            
+            doctor_visits = Counter()
+            specialization_visits = Counter()
+            monthly_visits = Counter()
+            
+            # Get doctor info for each appointment
+            for appointment in appointments:
+                doctor_id = appointment.get('doctor_id')
+                if doctor_id:
+                    doctor_info = await self.get_doctor_info(doctor_id, access_token)
+                    if doctor_info:
+                        doctor_name = f"{doctor_info['name']} {doctor_info['surname']}"
+                        doctor_visits[doctor_name] += 1
+                        specialization_visits[doctor_info['specialization']] += 1
+                
+                # Count monthly visits
+                appointment_date = appointment.get('datetime', '')
+                if appointment_date:
+                    try:
+                        date_obj = datetime.fromisoformat(appointment_date.replace('Z', '+00:00'))
+                        month_key = date_obj.strftime('%Y-%m')
+                        monthly_visits[month_key] += 1
+                    except:
+                        pass
+            
+            # Get top 3 favorite doctors
+            favorite_doctors = [
+                {"name": doctor, "visits": count}
+                for doctor, count in doctor_visits.most_common(3)
+            ]
+            
+            return {
+                "total_appointments": len(appointments),
+                "favorite_doctors": favorite_doctors,
+                "specializations": dict(specialization_visits.most_common()),
+                "monthly_visits": dict(monthly_visits)
+            }
+            
+        except Exception as e:
+            print(f"Statistics error: {e}")
+            return None

@@ -24,6 +24,11 @@ class BotKeyboards:
         # Third row
         keyboard.row(
             InlineKeyboardButton(text="🔍 Поиск врачей", callback_data="search_doctors"),
+            InlineKeyboardButton(text="📊 Моя статистика", callback_data="my_statistics")
+        )
+        
+        # Fourth row
+        keyboard.row(
             InlineKeyboardButton(text="📝 Регистрация", callback_data="register")
         )
         

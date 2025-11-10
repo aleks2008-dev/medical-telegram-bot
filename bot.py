@@ -199,6 +199,84 @@ async def register_callback(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+@dp.callback_query(F.data == "my_statistics")
+async def my_statistics_callback(callback: types.CallbackQuery):
+    """Show user statistics"""
+    user_id = callback.from_user.id
+    
+    if user_id not in user_tokens:
+        await callback.message.edit_text(
+            "❌ **Требуется авторизация**\n\n"
+            "Для просмотра статистики необходимо войти в систему.",
+            reply_markup=BotKeyboards.back_to_main(),
+            parse_mode="Markdown"
+        )
+        await callback.answer()
+        return
+    
+    access_token = user_tokens[user_id]["token"]
+    user_email = user_tokens[user_id]["email"]
+    
+    async with MedicalAPIClient() as api_client:
+        stats = await api_client.get_user_statistics(user_email, access_token)
+        
+        if not stats:
+            await callback.message.edit_text(
+                "❌ **Ошибка получения статистики**\n\n"
+                "Попробуйте позже.",
+                reply_markup=BotKeyboards.back_to_main(),
+                parse_mode="Markdown"
+            )
+            await callback.answer()
+            return
+        
+        # Format statistics message
+        stats_text = f"📊 **Моя статистика**\n\n"
+        
+        # Total appointments
+        total = stats.get('total_appointments', 0)
+        stats_text += f"📋 **Общее количество посещений:** {total}\n\n"
+        
+        # Favorite doctors
+        favorite_doctors = stats.get('favorite_doctors', [])
+        if favorite_doctors:
+            stats_text += "👨⚕️ **Любимые врачи:**\n"
+            for i, doctor in enumerate(favorite_doctors, 1):
+                stats_text += f"{i}. {doctor['name']} - {doctor['visits']} посещений\n"
+            stats_text += "\n"
+        
+        # Specializations
+        specializations = stats.get('specializations', {})
+        if specializations:
+            stats_text += "🏥 **По специализациям:**\n"
+            for spec, count in list(specializations.items())[:3]:
+                stats_text += f"• {spec}: {count} посещений\n"
+            stats_text += "\n"
+        
+        # Monthly activity
+        monthly_visits = stats.get('monthly_visits', {})
+        if monthly_visits:
+            stats_text += "📅 **Последние месяцы:**\n"
+            sorted_months = sorted(monthly_visits.items(), reverse=True)[:3]
+            for month, count in sorted_months:
+                try:
+                    from datetime import datetime
+                    month_name = datetime.strptime(month, '%Y-%m').strftime('%B %Y')
+                    stats_text += f"• {month_name}: {count} посещений\n"
+                except:
+                    stats_text += f"• {month}: {count} посещений\n"
+        
+        if total == 0:
+            stats_text = "📊 **Моя статистика**\n\n📋 У вас пока нет записей к врачам.\n\nЗапишитесь на прием чтобы увидеть статистику!"
+        
+        await callback.message.edit_text(
+            stats_text,
+            reply_markup=BotKeyboards.back_to_main(),
+            parse_mode="Markdown"
+        )
+    
+    await callback.answer()
+
 @dp.callback_query(F.data == "view_all_doctors")
 async def view_all_doctors_callback(callback: types.CallbackQuery):
     """Show all doctors regardless of specialization"""
