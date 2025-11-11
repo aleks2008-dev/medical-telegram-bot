@@ -29,7 +29,8 @@ class BotKeyboards:
         
         # Fourth row
         keyboard.row(
-            InlineKeyboardButton(text="📝 Регистрация", callback_data="register")
+            InlineKeyboardButton(text="📝 Регистрация", callback_data="register"),
+            InlineKeyboardButton(text="❓ Частые вопросы", callback_data="faq")
         )
         
         return keyboard.as_markup()
@@ -112,7 +113,7 @@ class BotKeyboards:
         )
         
         keyboard.row(
-            InlineKeyboardButton(text="🔙 Назад", callback_data="book_appointment"),
+            InlineKeyboardButton(text="🔙 Назад", callback_data="select_date"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
         )
         
@@ -310,6 +311,37 @@ class BotKeyboards:
         
         keyboard.row(
             InlineKeyboardButton(text="🔙 Назад", callback_data="book_appointment"),
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
+        )
+        
+        return keyboard.as_markup()
+    
+    @staticmethod
+    def faq_menu() -> InlineKeyboardMarkup:
+        """FAQ menu keyboard"""
+        keyboard = InlineKeyboardBuilder()
+        
+        keyboard.row(
+            InlineKeyboardButton(text="🕐 Часы работы", callback_data="faq_hours"),
+            InlineKeyboardButton(text="📍 Адрес", callback_data="faq_address")
+        )
+        keyboard.row(
+            InlineKeyboardButton(text="📞 Телефон", callback_data="faq_phone"),
+            InlineKeyboardButton(text="💰 Цены", callback_data="faq_prices")
+        )
+        keyboard.row(
+            InlineKeyboardButton(text="📅 Как записаться", callback_data="faq_booking"),
+            InlineKeyboardButton(text="📄 Документы", callback_data="faq_documents")
+        )
+        keyboard.row(
+            InlineKeyboardButton(text="❌ Отмена записи", callback_data="faq_cancel"),
+            InlineKeyboardButton(text="🧪 Результаты", callback_data="faq_results")
+        )
+        keyboard.row(
+            InlineKeyboardButton(text="🚗 Парковка", callback_data="faq_parking"),
+            InlineKeyboardButton(text="😷 COVID-19", callback_data="faq_covid")
+        )
+        keyboard.row(
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
         )
         

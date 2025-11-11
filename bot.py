@@ -21,6 +21,20 @@ dp = Dispatcher(storage=MemoryStorage())
 # Временное хранение токенов пользователей
 user_tokens = {}
 
+# Быстрые ответы на частые вопросы
+QUICK_REPLIES = {
+    "часы работы": "🕐 **Часы работы:**\nПн-Пт: 8:00-20:00\nСб: 9:00-15:00\nВс: выходной",
+    "адрес": "📍 **Наш адрес:**\nул. Медицинская, 123\nМосква, 101000",
+    "телефон": "📞 **Контакты:**\n+7 (999) 123-45-67\n+7 (999) 765-43-21",
+    "цены": "💰 **Цены на услуги:**\n• Консультация врача: от 1500 руб\n• Анализы: от 300 руб\n• УЗИ: от 1200 руб",
+    "как записаться": "📅 **Как записаться:**\n1. Нажмите 'Записаться к врачу'\n2. Выберите врача\n3. Выберите дату и время\n4. Подтвердите запись",
+    "документы": "📄 **Необходимые документы:**\n• Паспорт\n• Полис ОМС\n• СНИЛС (при наличии)",
+    "отмена записи": "❌ **Отмена записи:**\nВыберите 'Мои записи' → 'Отменить запись'\nИли позвоните по телефону",
+    "результаты анализов": "🧪 **Результаты анализов:**\nГотовы через 1-3 дня\nУведомление придет в бот",
+    "парковка": "🚗 **Парковка:**\nБесплатная парковка\nВход со стороны ул. Медицинской",
+    "covid": "😷 **COVID-19:**\nОбязательно: маска и перчатки\nИзмерение температуры на входе"
+}
+
 # FSM состояния для записи к врачу
 class BookingState(StatesGroup):
     selecting_doctor = State()
@@ -818,6 +832,87 @@ async def handle_login_credentials(message: types.Message):
             parse_mode="Markdown"
         )
 
+# ==================== FAQ HANDLERS ====================
+
+@dp.callback_query(F.data == "faq")
+async def faq_callback(callback: types.CallbackQuery):
+    """Show FAQ menu"""
+    await callback.message.edit_text(
+        "❓ **Частые вопросы**\n\n"
+        "Выберите интересующую тему:",
+        reply_markup=BotKeyboards.faq_menu(),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("faq_"))
+async def faq_answer_callback(callback: types.CallbackQuery):
+    """Handle FAQ answers"""
+    faq_type = callback.data.replace("faq_", "")
+    
+    faq_map = {
+        "hours": "часы работы",
+        "address": "адрес",
+        "phone": "телефон",
+        "prices": "цены",
+        "booking": "как записаться",
+        "documents": "документы",
+        "cancel": "отмена записи",
+        "results": "результаты анализов",
+        "parking": "парковка",
+        "covid": "covid"
+    }
+    
+    answer_key = faq_map.get(faq_type)
+    if answer_key and answer_key in QUICK_REPLIES:
+        await callback.message.edit_text(
+            QUICK_REPLIES[answer_key],
+            reply_markup=BotKeyboards.faq_menu(),
+            parse_mode="Markdown"
+        )
+    
+    await callback.answer()
+
+# ==================== QUICK REPLIES HANDLER ====================
+
+@dp.message()
+async def quick_replies_handler(message: types.Message):
+    """Handle quick replies for common questions"""
+    if not message.text:
+        return
+    
+    text = message.text.lower().strip()
+    
+    # Поиск по ключевым словам
+    for key, reply in QUICK_REPLIES.items():
+        if key in text:
+            await message.answer(
+                reply,
+                reply_markup=BotKeyboards.main_menu(),
+                parse_mode="Markdown"
+            )
+            return
+    
+    # Если ничего не найдено, показываем подсказки
+    suggestions = [
+        "часы работы", "адрес", "телефон", 
+        "цены", "как записаться", "документы"
+    ]
+    
+    help_text = (
+        f"🤔 **Не понял ваше сообщение**\n\n"
+        f"💬 Попробуйте спросить:\n"
+        f"• {', '.join(suggestions[:3])}\n"
+        f"• {', '.join(suggestions[3:])}\n\n"
+        f"Или используйте кнопки меню ниже:"
+    )
+    
+    await message.answer(
+        help_text,
+        reply_markup=BotKeyboards.main_menu(),
+        parse_mode="Markdown"
+    )
+
 # ==================== CATCH-ALL HANDLERS (MUST BE LAST) ====================
 
 @dp.callback_query()
@@ -825,15 +920,7 @@ async def unknown_callback_handler(callback: types.CallbackQuery):
     """Handle unknown callback queries"""
     await callback.answer("❓ Неизвестная команда")
 
-@dp.message()
-async def unknown_message_handler(message: types.Message):
-    """Handle unknown messages"""
-    await message.answer(
-        "🤔 **Не понял ваше сообщение**\n\n"
-        "Используйте кнопки меню для навигации.",
-        reply_markup=BotKeyboards.main_menu(),
-        parse_mode="Markdown"
-    )
+
 
 async def set_bot_commands():
     """Set bot commands for menu"""
